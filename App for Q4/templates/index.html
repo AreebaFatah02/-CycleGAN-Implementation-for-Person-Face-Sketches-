@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Sketch Master</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #FFDEE9, #B5FFFC);
+            font-family: 'Poppins', sans-serif;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+            margin-top: 50px;
+        }
+        h1 {
+            text-align: center;
+            color: #ff6f61;
+            font-size: 2.8rem;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px #ffab91;
+        }
+        .btn-primary {
+            background-color: #ff6f61;
+            border: none;
+            padding: 10px;
+            font-size: 1.2rem;
+            width: 100%;
+            border-radius: 10px;
+            transition: background-color 0.3s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #ff3d00;
+        }
+        video, img {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .tab-content {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Photo Sketch Master</h1>
+        
+        <ul class="nav nav-tabs" id="conversionTab" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="live-camera-tab" data-toggle="tab" href="#live-camera" role="tab" aria-controls="live-camera" aria-selected="true">Use Live Camera</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="upload-image-tab" data-toggle="tab" href="#upload-image" role="tab" aria-controls="upload-image" aria-selected="false">Upload Image</a>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="conversionTabContent">
+            <!-- Live Camera Section -->
+            <div class="tab-pane fade show active" id="live-camera" role="tabpanel" aria-labelledby="live-camera-tab">
+                <div class="text-center mb-4">
+                    <video id="video" autoplay></video>
+                    <select id="conversionLive" class="form-control my-3">
+                        <option value="photo-to-sketch">Photo to Sketch</option>
+                        <option value="sketch-to-photo">Sketch to Photo</option>
+                    </select>
+                    <button id="capture" class="btn btn-primary">Capture & Convert</button>
+                    <img id="resultImageLive" class="mt-3" alt="Converted Image">
+                </div>
+            </div>
+
+            <!-- Image Upload Section -->
+            <div class="tab-pane fade" id="upload-image" role="tabpanel" aria-labelledby="upload-image-tab">
+                <h3>Upload Image for Conversion</h3>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="file">Upload an Image</label>
+                        <input type="file" class="form-control-file" id="file" name="file" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="conversionUpload">Select Conversion</label>
+                        <select class="form-control" id="conversionUpload" name="conversion">
+                            <option value="sketch-to-photo">Sketch to Photo</option>
+                            <option value="photo-to-sketch">Photo to Sketch</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Convert</button>
+                </form>
+
+                <div class="result-section mt-3 text-center">
+                    <h4>Result:</h4>
+                    <img id="resultImageUpload" src="" alt="Converted Image" class="img-fluid">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Photo Sketch Master. All Rights Reserved.</p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        // Webcam setup for live conversion
+        const video = document.getElementById('video');
+        const resultImageLive = document.getElementById('resultImageLive');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; });
+
+        document.getElementById('capture').onclick = async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            const conversion = document.getElementById('conversionLive').value;
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            const response = await fetch('/convert/live', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData, conversion })
+            });
+
+            const data = await response.json();
+            resultImageLive.src = data.image;
+        };
+
+        // File upload for conversion
+        document.getElementById('uploadForm').onsubmit = async function(e) {
+            e.preventDefault();
+
+            let formData = new FormData();
+            let fileInput = document.getElementById('file');
+            let conversion = document.getElementById('conversionUpload').value;
+
+            formData.append('file', fileInput.files[0]);
+
+            let response = await fetch(`/convert/${conversion}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                let blob = await response.blob();
+                document.getElementById('resultImageUpload').src = URL.createObjectURL(blob);
+            } else {
+                console.error('Conversion failed');
+            }
+        };
+    </script>
+</body>
+</html>
